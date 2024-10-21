@@ -55,6 +55,7 @@ function getCadastreLayer(layerName, codeCommune) {
 		return Promise.all(communesToGet.map(function (communeToGet) {
 			return getRemoteJSON(`https://cadastre.data.gouv.fr/bundler/cadastre-etalab/communes/${communeToGet}/geojson/${layerName}`)
 		})).then(function (featureCollections) {
+			console.log("featureCollections",featureCollections) // added
 			return {
 				type: 'FeatureCollection',
 				features: featureCollections.reduce(function (acc, featureCollection) {
@@ -71,20 +72,43 @@ function getCadastreLayer(layerName, codeCommune) {
 
 function getParcelles(codeCommune, idSection) {
 	return getCadastreLayer('parcelles', codeCommune).then(function (featureCollection) {
+		/* ******************************************************** */
+		/* ************************ BELOW ************************* */
+		/* ******************************************************** */
+
+		minSurfaceInput = document.querySelector('#min-surface').value || 500; // default min surface
+		maxSurfaceInput = document.querySelector('#max-surface').value || 600; // default max surface
+
+		var parcellesSorted = _.chain(featureCollection.features)
+			.filter(function (f) {
+				return f.id.startsWith(idSection)
+			})
+			.map(obj => {
+				let rObj = obj;
+				rObj.surface = obj.properties.contenance;
+				return rObj
+			 })
+			 .filter(function (f) {
+				return f.surface > minSurfaceInput && f.surface < maxSurfaceInput // LPZ
+			})
+			.sortBy('surface')
+			.value()
+		console.log("ParcellesSorted",parcellesSorted); // lpz
+		/* ******************************************************** */
+		/* *********************** ABOVE ************************** */
+		/* ******************************************************** */
 		return {
 			type: 'FeatureCollection',
-			features: _.chain(featureCollection.features)
-				.filter(function (f) {
-					return f.id.startsWith(idSection)
-				})
-				.sortBy('id')
-				.value()
+			features: parcellesSorted
 		}
 	})
 }
 
 function sortByLabel(features) {
-	return _.sortBy(features, function (f) { return f.properties.label })
+	return _.sortBy(features, function (f) { 
+		console.log("f.propertiesf",f.properties);// lpz
+		return f.properties.label 
+	})
 }
 
 function getSections(codeCommune) {
@@ -118,6 +142,7 @@ function sortByDateDesc(mutations) {
 
 function computeParcelle(mutationsSection, idParcelle) {
 	var mutationsParcelle = mutationsSection.filter(function (m) {
+		console.log("ComputeParcelle",m.id_parcelle,idParcelle);
 		return m.id_parcelle === idParcelle
 	})
 
